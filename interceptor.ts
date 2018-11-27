@@ -49,7 +49,6 @@ export class InterceptorProvider implements HttpInterceptor {
       // first try for the request
       next.handle(clone)
         .subscribe((event: HttpEvent<any>) => {
-            //alert("SUBSCRIBE");
             if (event instanceof HttpResponse) {
               // the request went well and we have valid response
               // give response to user and complete the subscription
@@ -58,78 +57,102 @@ export class InterceptorProvider implements HttpInterceptor {
             }
           },
           error => {
-            if (error instanceof HttpErrorResponse && (error.status === 403 || error.status === 401)) {
-              if (localStorage.getItem('typeRegister') == "loginWithEmail") {
-                // try to re-log the user with EMAIL
-                this._up.loginEmailObs(localStorage.getItem("email"), localStorage.getItem("password")).subscribe(authToken => {
-                  let newToken = authToken.result['access_token'];
-                  localStorage.removeItem("TOKEN");
-                  localStorage.setItem('TOKEN', newToken);
-                  let newRequest = req.clone({
-                    setHeaders: {
-                      Accept: `application/json`,
-                      'Content-Type': `application/json`,
-                      Authorization: `Bearer ${newToken}`
-                    }
-                  });
-                  // retry the request with the new token
-                  next.handle(newRequest)
-                    .subscribe(newEvent => {
-                      if (newEvent instanceof HttpResponse) {
-                        // the second try went well and we have valid response
-                        // give response to user and complete the subscription
-                        subscriber.next(newEvent);
-                        subscriber.complete();
-                      }
-                    }, error => {
-                      // second try went wrong -> throw error to subscriber
-                      subscriber.error(error);
-                    });
+            if (req.url.search('/auth')) {
+              if(error.status === 401){
+                let newRequest = req.clone({
+                  setHeaders: {
+                    Accept: `application/json`,
+                    'Content-Type': `application/json`
+                  }
                 });
-              } else if (localStorage.getItem('typeRegister') == "loginWithPhone") {
-                // try to re-log the user with PHONE
-                this._up.loginPhoneObs(localStorage.getItem("telephone"), localStorage.getItem("password")).subscribe(authToken => {
-                  let newToken = authToken.result['access_token'];
-                  localStorage.removeItem("TOKEN");
-                  localStorage.setItem('TOKEN', newToken);
-                  let newRequest = req.clone({
-                    setHeaders: {
-                      Accept: `application/json`,
-                      'Content-Type': `application/json`,
-                      Authorization: `Bearer ${newToken}`
+                next.handle(newRequest)
+                  .subscribe(newEvent => {
+                    if (newEvent instanceof HttpResponse) {
+                      // the second try went well and we have valid response
+                      // give response to user and complete the subscription
+                      subscriber.next(newEvent);
+                      subscriber.complete();
                     }
+                  }, error => {
+                    // second try went wrong -> throw error to subscriber
+                    subscriber.error(error);
                   });
-                  // retry the request with the new token
-                  next.handle(newRequest)
-                    .subscribe(newEvent => {
-                      if (newEvent instanceof HttpResponse) {
-                        // the second try went well and we have valid response
-                        // give response to user and complete the subscription
-                        subscriber.next(newEvent);
-                        subscriber.complete();
-                      }
-                    }, error => {
-                      // second try went wrong -> throw error to subscriber
-                      subscriber.error(error);
-                    });
-                });
-              } else if ((localStorage.getItem('typeRegister') == "FirstTimeEmail") || (localStorage.getItem('typeRegister') == "FirstTimePhone")) {
-                console.log("typeRegister FirstTime" + localStorage.getItem('typeRegister'));
-                this._ctp.cleanStorage();
-                let nav = this.app.getActiveNav();
-                nav.setRoot('Login');
-
-              } else {
-                // FACEBOOK
-                this._ctp.cleanStorage();
-                let nav = this.app.getActiveNav();
-                nav.setRoot('Login');
               }
+            } else {
+              if (error instanceof HttpErrorResponse && (error.status === 403 || error.status === 401)) {
+                if (localStorage.getItem('typeRegister') == "loginWithEmail") {
+                  // try to re-log the user with EMAIL
+                  this._up.loginEmailObs(localStorage.getItem("email"), localStorage.getItem("password")).subscribe(authToken => {
+                    let newToken = authToken.result['access_token'];
+                    localStorage.removeItem("TOKEN");
+                    localStorage.setItem('TOKEN', newToken);
+                    let newRequest = req.clone({
+                      setHeaders: {
+                        Accept: `application/json`,
+                        'Content-Type': `application/json`,
+                        Authorization: `Bearer ${newToken}`
+                      }
+                    });
+                    // retry the request with the new token
+                    next.handle(newRequest)
+                      .subscribe(newEvent => {
+                        if (newEvent instanceof HttpResponse) {
+                          // the second try went well and we have valid response
+                          // give response to user and complete the subscription
+                          subscriber.next(newEvent);
+                          subscriber.complete();
+                        }
+                      }, error => {
+                        // second try went wrong -> throw error to subscriber
+                        subscriber.error(error);
+                      });
+                  });
+                } else if (localStorage.getItem('typeRegister') == "loginWithPhone") {
+                  // try to re-log the user with PHONE
+                  this._up.loginPhoneObs(localStorage.getItem("telephone"), localStorage.getItem("password")).subscribe(authToken => {
+                    let newToken = authToken.result['access_token'];
+                    localStorage.removeItem("TOKEN");
+                    localStorage.setItem('TOKEN', newToken);
+                    let newRequest = req.clone({
+                      setHeaders: {
+                        Accept: `application/json`,
+                        'Content-Type': `application/json`,
+                        Authorization: `Bearer ${newToken}`
+                      }
+                    });
+                    // retry the request with the new token
+                    next.handle(newRequest)
+                      .subscribe(newEvent => {
+                        if (newEvent instanceof HttpResponse) {
+                          // the second try went well and we have valid response
+                          // give response to user and complete the subscription
+                          subscriber.next(newEvent);
+                          subscriber.complete();
+                        }
+                      }, error => {
+                        // second try went wrong -> throw error to subscriber
+                        subscriber.error(error);
+                      });
+                  });
+                } else if ((localStorage.getItem('typeRegister') == "FirstTimeEmail") || (localStorage.getItem('typeRegister') == "FirstTimePhone")) {
+                  console.log("typeRegister FirstTime" + localStorage.getItem('typeRegister'));
+                  this._ctp.cleanStorage();
+                  let nav = this.app.getActiveNav();
+                  nav.setRoot('Login');
+
+                } else {
+                  // FACEBOOK
+                  this._ctp.cleanStorage();
+                  let nav = this.app.getActiveNav();
+                  nav.setRoot('Login');
+                }
+              } else {
+                // the error was not related to auth token -> throw error to subscriber
+                subscriber.error(error);
+              }
+
             }
-            else {
-              // the error was not related to auth token -> throw error to subscriber
-              subscriber.error(error);
-            }
+
           }
         );
     });
